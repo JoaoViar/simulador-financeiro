@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulador Financeiro | À Vista vs. A Prazo</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        :root {
+            --brand-yellow: #ffc107;
+            --brand-yellow-dark: #e0a800;
+            --brand-dark: #212529;
+            --bg-light: #f4f5f7;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-light);
+            color: #333;
+        }
+
+        .navbar-theme {
+            background-color: var(--brand-dark);
+            border-bottom: 4px solid var(--brand-yellow);
+        }
+
+        .card-custom {
+            border: none;
+            border-radius: 12px;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.05);
+        }
+
+        /* Estilos dos Cards de Veredito */
+        .card-veredito-prazo {
+            background: linear-gradient(135deg, #198754, #146c43);
+            color: #fff;
+        }
+        .card-veredito-vista {
+            background: linear-gradient(135deg, #dc3545, #b02a37);
+            color: #fff;
+        }
+
+        /* Botões do Formulário */
+        .btn-brand {
+            background-color: var(--brand-yellow);
+            color: var(--brand-dark);
+            font-weight: 700;
+            border: none;
+        }
+        .btn-brand:hover {
+            background-color: var(--brand-yellow-dark);
+            color: var(--brand-dark);
+        }
+
+        .btn-outline-brand {
+            border-color: #d39e00;
+            color: var(--brand-dark);
+            font-weight: 600;
+        }
+        .btn-check:checked + .btn-outline-brand {
+            background-color: var(--brand-yellow);
+            border-color: var(--brand-yellow-dark);
+            color: var(--brand-dark);
+            font-weight: 700;
+        }
+
+        .calc-preview-box {
+            background-color: #fff9e6;
+            border-left: 4px solid var(--brand-yellow-dark);
+            border-radius: 6px;
+        }
+
+        /* TABELA EM TELA CHEIA */
+        .table-fullwidth-container {
+            max-height: 520px;
+            overflow-y: auto;
+            overflow-x: auto;
+            border-radius: 8px;
+            border: 1px solid #dee2e6;
+        }
+
+        .table-fullwidth-container table {
+            width: 100% !important;
+            margin-bottom: 0;
+        }
+
+        .table-fullwidth-container table thead {
+            position: sticky;
+            top: 0;
+            background-color: var(--brand-dark) !important;
+            z-index: 2;
+        }
+
+        .table-fullwidth-container table thead th {
+            background-color: var(--brand-dark) !important;
+            color: var(--brand-yellow) !important;
+            white-space: nowrap;
+            padding: 12px 16px;
+            font-weight: 600;
+        }
+
+        .table-fullwidth-container table td {
+            white-space: nowrap;
+            padding: 10px 16px;
+        }
+
+        .footer-disclaimer {
+            background-color: #e9ecef;
+            border-top: 2px solid #dee2e6;
+            font-size: 0.85rem;
+            color: #6c757d;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header / Navbar -->
+    <nav class="navbar navbar-dark navbar-theme mb-4 shadow-sm">
+        <div class="container-fluid px-4">
+            <a class="navbar-brand fw-bold text-warning" href="/">
+                <i class="bi bi-calculator-fill me-2 text-warning"></i>Simulador Financeiro
+            </a>
+            <span class="navbar-text text-light small d-none d-md-inline">
+                Análise de Custo de Oportunidade
+            </span>
+        </div>
+    </nav>
+
+    <div class="container-fluid px-4 pb-4">
+
+        {% if erro %}
+        <div class="alert alert-danger alert-dismissible fade show card-custom mb-4" role="alert">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>{{ erro }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endif %}
+
+        <div class="row g-4 mb-4">
+
+            <!-- Formulario -->
+            <div class="col-lg-4">
+                <div class="card card-custom p-4 bg-white h-100">
+                    <h5 class="fw-bold mb-3 text-dark">
+                        <i class="bi bi-sliders text-warning me-2"></i>Parâmetros da Simulação
+                    </h5>
+
+                    <form action="/calcular" method="POST" id="simuladorForm">
+
+                        <!--Valor à Vista -->
+                        <div class="mb-3">
+                            <label for="valor_vista" class="form-label fw-semibold">Valor à Vista (R$)</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light"><i class="bi bi-cash-stack"></i></span>
+                                <input type="number" step="0.01" min="0" class="form-control" id="valor_vista" name="valor_vista"
+                                       value="{{ valor_vista if valor_vista else '' }}" placeholder="Ex: 10000.00" required>
+                            </div>
+                        </div>
+
+                        <!-- Modo a Prazo -->
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold d-block">Modo do valor a prazo:</label>
+                            <div class="btn-group w-100" role="group">
+                                <input type="radio" class="btn-check" name="modo_prazo" id="modo_parcela" value="parcela"
+                                       {% if modo_prazo != 'total' %}checked{% endif %} onchange="alternarModoPrazo()">
+                                <label class="btn btn-outline-brand btn-sm" for="modo_parcela">
+                                    <i class="bi bi-list-ol me-1"></i>Por Parcela
+                                </label>
+
+                                <input type="radio" class="btn-check" name="modo_prazo" id="modo_total" value="total"
+                                       {% if modo_prazo == 'total' %}checked{% endif %} onchange="alternarModoPrazo()">
+                                <label class="btn btn-outline-brand btn-sm" for="modo_total">
+                                    <i class="bi bi-wallet2 me-1"></i>Total a Prazo
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Quantidade de Parcelas -->
+                        <div class="mb-3">
+                            <label for="parcelas" class="form-label fw-semibold">Número de Parcelas</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light"><i class="bi bi-calendar3"></i></span>
+                                <input type="number" min="1" max="{{ max_parcelas if max_parcelas else 100 }}" class="form-control"
+                                       id="parcelas" name="parcelas" value="{{ parcelas if parcelas else 12 }}"
+                                       oninput="calcularAutomatico()" required>
+                            </div>
+                            <div class="form-text">Projeções disponíveis: {{ max_parcelas }} meses.</div>
+                        </div>
+
+                        <!-- Valor por Parcela -->
+                        <div class="mb-3" id="grupo_valor_parcela">
+                            <label for="valor_parcela" class="form-label fw-semibold">Valor por Parcela (R$)</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light"><i class="bi bi-currency-dollar"></i></span>
+                                <input type="number" step="0.01" min="0" class="form-control" id="valor_parcela" name="valor_parcela"
+                                       value="{{ valor_parcela if valor_parcela else '' }}" placeholder="Ex: 900.00" oninput="calcularAutomatico()">
+                            </div>
+                        </div>
+
+                        <!-- Valor Total A Prazo -->
+                        <div class="mb-3 d-none" id="grupo_valor_total">
+                            <label for="valor_total_prazo" class="form-label fw-semibold">Valor Total a Prazo (R$)</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light"><i class="bi bi-receipt"></i></span>
+                                <input type="number" step="0.01" min="0" class="form-control" id="valor_total_prazo" name="valor_total_prazo"
+                                       value="{{ valor_total_prazo if valor_total_prazo else '' }}" placeholder="Ex: 10800.00" oninput="calcularAutomatico()">
+                            </div>
+                        </div>
+
+                        <!-- Prévia -->
+                        <div class="calc-preview-box p-3 my-3">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <span class="text-muted small">Valor por parcela:</span>
+                                <span class="fw-bold text-dark" id="preview_parcela">R$ 0,00</span>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="text-muted small">Custo Total a Prazo:</span>
+                                <span class="fw-bold text-dark" id="preview_total">R$ 0,00</span>
+                            </div>
+                        </div>
+
+                        <!-- Botão simulação -->
+                        <button type="button" class="btn btn-brand btn-lg w-100 shadow-sm mt-auto" onclick="abrirModalAviso()">
+                            <i class="bi bi-play-circle-fill me-2"></i>Simular Rendimentos
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Area cards -->
+            <div class="col-lg-8">
+                {% if tabela %}
+
+                <!-- Primiera linha cards -->
+                <div class="row g-3 mb-3">
+                    <div class="col-md-4">
+                        <div class="card card-custom p-3 bg-white border-start border-4 border-warning h-100">
+                            <span class="text-muted small fw-semibold">Total à Vista</span>
+                            <h4 class="fw-bold text-dark mb-0 mt-1">R$ {{ valor_vista | moeda_br }}</h4>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card card-custom p-3 bg-white border-start border-4 border-dark h-100">
+                            <span class="text-muted small fw-semibold">Total a Prazo</span>
+                            <h4 class="fw-bold text-dark mb-0 mt-1">R$ {{ (valor_parcela * parcelas) | moeda_br }}</h4>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card card-custom p-3 bg-white border-start border-4 border-secondary h-100">
+                            <span class="text-muted small fw-semibold">Período Selecionado</span>
+                            <h4 class="fw-bold text-dark mb-0 mt-1">{{ parcelas }} Meses</h4>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Segunda lnha cards -->
+                <div class="row g-3 mb-3">
+                    <div class="col-md-6">
+                        {% if se_vale_prazo %}
+                        <div class="card card-custom p-3 card-veredito-prazo h-100">
+                            <div class="d-flex align-items-center mb-1">
+                                <i class="bi bi-check-circle-fill fs-3 me-2"></i>
+                                <div>
+                                    <span class="text-white-50 small fw-semibold">Recomendação Final</span>
+                                    <h5 class="fw-bold mb-0">Vale mais a pena a PRAZO!</h5>
+                                </div>
+                            </div>
+                            <small class="text-white-50 mt-1">O rendimento do capital investido supera o custo do parcelamento.</small>
+                        </div>
+                        {% else %}
+                        <div class="card card-custom p-3 card-veredito-vista h-100">
+                            <div class="d-flex align-items-center mb-1">
+                                <i class="bi bi-x-circle-fill fs-3 me-2"></i>
+                                <div>
+                                    <span class="text-white-50 small fw-semibold">Recomendação Final</span>
+                                    <h5 class="fw-bold mb-0">Vale mais a pena à VISTA!</h5>
+                                </div>
+                            </div>
+                            <small class="text-white-50 mt-1">O rendimento do período não compensa o valor cobrado a prazo.</small>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="card card-custom p-3 bg-white border-start border-4 border-warning h-100">
+                            <span class="text-muted small fw-semibold">
+                                {% if se_vale_prazo %}Sobra Estimada no Bolso{% else %}Custo Adicional a Prazo{% endif %}
+                            </span>
+                            <h3 class="fw-bold {% if se_vale_prazo %}text-success{% else %}text-danger{% endif %} mb-0 mt-1">
+                                R$ {{ diferenca_sobra | moeda_br }}
+                            </h3>
+                            <small class="text-muted">Resultado acumulado após {{ parcelas }} meses.</small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Grafico -->
+                <div class="card card-custom p-4 bg-white">
+                    <h5 class="fw-bold mb-3 text-dark">
+                        <i class="bi bi-graph-up-arrow text-warning me-2"></i>Evolução do Saldo do Investimento
+                    </h5>
+                    <div style="height: 250px;">
+                        <canvas id="graficoSimulacao"></canvas>
+                    </div>
+                </div>
+
+                {% else %}
+                <div class="card card-custom p-5 bg-white text-center h-100 d-flex justify-content-center align-items-center">
+                    <div class="text-muted">
+                        <i class="bi bi-calculator display-1 text-warning opacity-50"></i>
+                        <h4 class="mt-3 fw-bold text-dark">Pronto para simular</h4>
+                        <p class="mb-0">Preencha os valores ao lado para calcular o custo de oportunidade e os rendimentos estimados.</p>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Tabela -->
+        {% if tabela %}
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card card-custom p-4 bg-white">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="fw-bold text-dark mb-0">
+                            <i class="bi bi-table text-warning me-2"></i>Detalhamento Mês a Mês
+                        </h5>
+                    </div>
+
+                    <div class="table-fullwidth-container shadow-sm">
+                        {{ tabela | safe }}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+    </div>
+
+    <!-- Responsabilidade -->
+    <footer class="footer-disclaimer py-3 mt-auto">
+        <div class="container-fluid px-4 text-center">
+            <p class="mb-1 fw-semibold text-secondary">
+                <i class="bi bi-shield-exclamation me-1"></i> Aviso Legal de Responsabilidade
+            </p>
+            <p class="mb-0 text-muted small">
+                Esta ferramenta possui caráter educativo e simulatório. Os cálculos utilizam expectativas do Boletim Focus e contratos de DI Futuro. As projeções não constituem garantia de rentabilidade real e a plataforma não se responsabiliza por quaisquer decisões financeiras ou investimentos realizados com base nesses dados.
+            </p>
+        </div>
+    </footer>
+
+    <!-- Popup -->
+    <div class="modal fade" id="modalAvisoLegal" tabindex="-1" aria-labelledby="modalAvisoLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content card-custom">
+                <div class="modal-header bg-dark text-white">
+                    <h5 class="modal-title fw-bold text-warning" id="modalAvisoLabel">
+                        <i class="bi bi-shield-exclamation me-2"></i>Aviso da Simulação
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4 text-secondary">
+                    <p class="mb-3">
+                        Esta ferramenta é projetada para fins demonstrativos e educacionais de análise de custo de oportunidade.
+                    </p>
+                    <p class="mb-0">
+                        Os resultados utilizam expectativas do Boletim Focus e estimativas do DI Futuro. As projeções não garantem rentabilidade futura e o sistema não se responsabiliza por decisões financeiras tomadas com base nestes dados.
+                    </p>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary fw-semibold" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-brand px-4 fw-bold shadow-sm" onclick="confirmarEEnviar()">
+                        Entendi e Simular <i class="bi bi-arrow-right-short ms-1"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let modalAvisoBS;
+
+        function abrirModalAviso() {
+            const form = document.getElementById('simuladorForm');
+            if (!form.checkValidity()) {
+                form.reportValidity();
+                return;
+            }
+            modalAvisoBS = new bootstrap.Modal(document.getElementById('modalAvisoLegal'));
+            modalAvisoBS.show();
+        }
+
+        function confirmarEEnviar() {
+            if (modalAvisoBS) {
+                modalAvisoBS.hide();
+            }
+            document.getElementById('simuladorForm').submit();
+        }
+
+        function alternarModoPrazo() {
+            const isTotal = document.getElementById('modo_total').checked;
+            const grupoParcela = document.getElementById('grupo_valor_parcela');
+            const grupoTotal = document.getElementById('grupo_valor_total');
+
+            if (isTotal) {
+                grupoParcela.classList.add('d-none');
+                grupoTotal.classList.remove('d-none');
+            } else {
+                grupoParcela.classList.remove('d-none');
+                grupoTotal.classList.add('d-none');
+            }
+            calcularAutomatico();
+        }
+
+        function calcularAutomatico() {
+            const isTotal = document.getElementById('modo_total').checked;
+            const parcelas = parseFloat(document.getElementById('parcelas').value) || 1;
+
+            let valParcela = 0;
+            let valTotal = 0;
+
+            if (isTotal) {
+                valTotal = parseFloat(document.getElementById('valor_total_prazo').value) || 0;
+                valParcela = parcelas > 0 ? (valTotal / parcelas) : 0;
+            } else {
+                valParcela = parseFloat(document.getElementById('valor_parcela').value) || 0;
+                valTotal = valParcela * parcelas;
+            }
+
+            document.getElementById('preview_parcela').innerText = 'R$ ' + valParcela.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            document.getElementById('preview_total').innerText = 'R$ ' + valTotal.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+        }
+
+        document.addEventListener("DOMContentLoaded", function() {
+            alternarModoPrazo();
+        });
+
+        {% if dados_grafico %}
+        const ctx = document.getElementById('graficoSimulacao').getContext('2d');
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: {{ dados_grafico.labels | safe }},
+                datasets: [
+                    {
+                        label: 'Saldo Pós-Parcela (R$)',
+                        data: {{ dados_grafico.saldo_pos | safe }},
+                        borderColor: '#e0a800',
+                        backgroundColor: 'rgba(255, 193, 7, 0.15)',
+                        fill: true,
+                        tension: 0.3,
+                        pointRadius: 4,
+                        pointBackgroundColor: '#212529'
+                    },
+                    {
+                        label: 'Desembolso À Vista',
+                        data: {{ dados_grafico.desembolso_vista | safe }},
+                        borderColor: '#dc3545',
+                        borderDash: [5, 5],
+                        fill: false,
+                        pointRadius: 0
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'top' }
+                },
+                scales: {
+                    y: {
+                        ticks: {
+                            callback: function(value) {
+                                return 'R$ ' + value.toLocaleString('pt-BR');
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        {% endif %}
+    </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
