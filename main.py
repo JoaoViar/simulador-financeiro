@@ -3,7 +3,13 @@ import pandas as pd
 from servicosDados.dadosFocus import puxar_dados_da_api_anual, puxar_dados_da_api_reuniao
 from calculos.calculos import realizar_calculo_financeiro
 from banco import inicializar_banco, carregar_tabela_simulacao
+from atualizar import atualizar_tudo
 
+inicializar_banco()
+try:
+    atualizar_tudo()
+except Exception as e:
+    print(f"Aviso na atualização inicial: {e}")
 app = Flask(__name__)
 
 # Garante que as tabelas existam ao subir a aplicação
