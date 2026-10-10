@@ -119,14 +119,30 @@
 <body>
 
     <!-- Header / Navbar -->
-    <nav class="navbar navbar-dark navbar-theme mb-4 shadow-sm">
+    <nav class="navbar navbar-expand-md navbar-dark navbar-theme mb-4 shadow-sm">
         <div class="container-fluid px-4">
             <a class="navbar-brand fw-bold text-warning" href="/">
                 <i class="bi bi-calculator-fill me-2 text-warning"></i>Simulador Financeiro
             </a>
-            <span class="navbar-text text-light small d-none d-md-inline">
-                Análise de Custo de Oportunidade
-            </span>
+
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link text-warning fw-bold active" href="/">
+                            <i class="bi bi-cpu me-1"></i>Simulador
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link text-light fw-semibold" href="/dados">
+                            <i class="bi bi-graph-up me-1"></i>Dados do Mercado
+                        </a>
+                    </li>
+                </ul>
+            </div>
         </div>
     </nav>
 
